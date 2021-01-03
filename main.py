@@ -1,6 +1,6 @@
 """
     author: kaio_stricker
-    title: csm_crowler
+    title: cdm_crowler
     description: get the content of titles from the website 'http://cdm.etc.br/'
 """
 from crawler import start
