@@ -1,11 +1,16 @@
 import requests
 import re
 import os.path
+from multiprocessing import Pool
 from bs4 import BeautifulSoup
 main_url = 'http://cdm.etc.br'
 
-# True for help messagens while running
-DEBUG = False
+"""
+    RUNNING PARAMETERS
+"""
+DEBUG = False                       # True for help messagens while running
+TOTAL_WORKERS = 6                   # Total of threads used to download files
+MAIN_URL = 'http://cdm.etc.br'      # Base URL of the website
 
 
 def start(config):
@@ -16,10 +21,11 @@ def start(config):
         'description': based on 'method' parameter
     """
     check_folder()
+    url = None
     if config['method'] == 'title':
-        url = f'{main_url}/titulos/{config["description"]}'
+        url = f'{MAIN_URL}/titulos/{config["description"]}'
     elif config['method'] == 'letter':
-        url = f'{main_url}/filtro/{config["description"]}'
+        url = f'{MAIN_URL}/filtro/{config["description"]}'
     else:
         print("Invalid method.")
     if DEBUG:
@@ -42,7 +48,7 @@ def scrap_title(description, url):
             print('::scrap_title - links:', links)
         for item in links.__reversed__():
             if 'ler-online-completo' in str(item):
-                url = f'{main_url}/{item.attrs["href"]}'
+                url = f'{MAIN_URL}/{item.attrs["href"]}'
                 if DEBUG:
                     print('::scrap_title - url:', url)
                 scrap_chapter(description, url)
@@ -56,6 +62,8 @@ def scrap_chapter(description, url):
     """
     chapter = re.search('\d+$', url).group(0)
     check_folder(description, chapter)
+    url_base = None
+    pages_base = None
     if DEBUG:
         print('::scrap_chapter - url:', url)
     r = requests.get(url=url)
@@ -71,26 +79,37 @@ def scrap_chapter(description, url):
                 if DEBUG:
                     print('::scrap_chapter - url_base:', url_base)
                     print('::scrap_chapter - pages_base:', pages_base)
-        total_dados = len(pages_base)
         contador = 0
+        download_list = []
         for item in pages_base:
             contador += 1
-            print(f'\r- Dowloading {description} chapter {chapter} ({contador}/{total_dados}).', end='')
             if DEBUG:
                 print('::scrap_chapter - item:', item)
-            get_page(description, chapter, url_base, item, 'jpg')
+            download_list.append({
+                'description': description,
+                'chapter': chapter,
+                'url': url_base,
+                'page': item,
+                'file_format': 'jpg'
+            })
+        with Pool(processes=TOTAL_WORKERS) as pool:
+            pool.map(get_page, download_list)
         print(f' Chapter successfully downloaded.')
 
 
-def get_page(description, chapter, url, page, file_format):
+def get_page(params):
     """
     Function that gets the actual image of the title
-    :param description: name of the title
-    :param chapter: number of the chapter of the title
-    :param url: url where the image is getting from
-    :param page: relative link of the url of the page
-    :param file_format: format of the image
+    :param params: dict with the data parameters used for running the thread
     """
+    description = params.get('description')
+    chapter = params.get('chapter')
+    url = params.get('url')
+    page = params.get('page')
+    file_format = params.get('file_format')
+
+    print(f'\r- Dowloading {description} chapter {chapter} ({page}).', end='')
+
     url_page = f'{url}{page}.{file_format}'
     if DEBUG:
         print('::get_page - url_page:', url_page)

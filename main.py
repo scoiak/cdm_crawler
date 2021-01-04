@@ -8,7 +8,7 @@ from crawler import start
 if __name__ == '__main__':
     start(config={
         'method': 'title',
-        'description': 'maou-jou-de-oyasumi'
+        'description': 'tenchi-muyo'
     })
 
 
