@@ -1,4 +1,4 @@
-#### cdm_crowler
+#### cdm_crawler
 
 Scrappy software para ser executado no site 'http://cdm.etc.br/' com o objetivo de realizar o download do conteúdo de um determinado título passado como parâmetro na execução.
 

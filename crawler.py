@@ -1,9 +1,11 @@
 import requests
 import re
 import os.path
-from os import path
 from bs4 import BeautifulSoup
 main_url = 'http://cdm.etc.br'
+
+# True for help messagens while running
+DEBUG = False
 
 
 def start(config):
@@ -20,7 +22,8 @@ def start(config):
         url = f'{main_url}/filtro/{config["description"]}'
     else:
         print("Invalid method.")
-    print('Getting data from:', url)
+    if DEBUG:
+        print('::start - url:', url)
     scrap_title(config["description"], url)
 
 
@@ -30,14 +33,18 @@ def scrap_title(description, url):
     :param url: url from where title data will be collecte
     """
     check_folder(description)
+    print(f'Starting download of the title \'{description}\'')
     r = requests.get(url=url)
     if r.ok:
         soup = BeautifulSoup(r.content, 'html.parser')
-        links = soup.find_all('a')
-        for item in links:
+        links = [x for x in soup.find_all('a')]
+        if DEBUG:
+            print('::scrap_title - links:', links)
+        for item in links.__reversed__():
             if 'ler-online-completo' in str(item):
                 url = f'{main_url}/{item.attrs["href"]}'
-                print("Getting chapter from:", url)
+                if DEBUG:
+                    print('::scrap_title - url:', url)
                 scrap_chapter(description, url)
 
 
@@ -49,6 +56,8 @@ def scrap_chapter(description, url):
     """
     chapter = re.search('\d+$', url).group(0)
     check_folder(description, chapter)
+    if DEBUG:
+        print('::scrap_chapter - url:', url)
     r = requests.get(url=url)
     if r.ok:
         soup = BeautifulSoup(r.content, 'html.parser')
@@ -59,8 +68,18 @@ def scrap_chapter(description, url):
                 url_base = re.search('\'(.*)\'', url_line).group(0).replace('\'', '')
                 pages_line = re.search('.*(pages).*', str(item)).group(0)
                 pages_base = re.findall('(\d+)', pages_line)
+                if DEBUG:
+                    print('::scrap_chapter - url_base:', url_base)
+                    print('::scrap_chapter - pages_base:', pages_base)
+        total_dados = len(pages_base)
+        contador = 0
         for item in pages_base:
+            contador += 1
+            print(f'\r- Dowloading {description} chapter {chapter} ({contador}/{total_dados}).', end='')
+            if DEBUG:
+                print('::scrap_chapter - item:', item)
             get_page(description, chapter, url_base, item, 'jpg')
+        print(f' Chapter successfully downloaded.')
 
 
 def get_page(description, chapter, url, page, file_format):
@@ -73,7 +92,8 @@ def get_page(description, chapter, url, page, file_format):
     :param file_format: format of the image
     """
     url_page = f'{url}{page}.{file_format}'
-    print('url_page', url_page)
+    if DEBUG:
+        print('::get_page - url_page:', url_page)
     r = requests.get(url=url_page, headers={'Referer': 'http://centraldemangas.online'})
     if r.ok:
         file = open(f'output/{description}/{chapter}/{page}.{file_format}', "wb")
@@ -83,7 +103,7 @@ def get_page(description, chapter, url, page, file_format):
 
 def check_folder(t=None, c=None):
     """
-    Check if the targer folder exists, if not, creates it
+    Checks if the target folder exists, if not, creates it
     :param t: name of the tile
     :param c: number of the chapter
     """
